@@ -1,35 +1,38 @@
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 from llama_index.readers.file import PDFReader
 from llama_index.core.node_parser import SentenceSplitter
 from dotenv import load_dotenv
 from typing import List
 
 load_dotenv()
-client = OpenAI()
-EMBED_MODEL = "text-embedding-3-large"
-EMBED_DIM = 3072
+
+EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBED_DIM = 384  # Dimension for all-MiniLM-L6-v2
+
+splitter = SentenceSplitter(chunk_size=1000, chunk_overlap=400)
 
 
-splitter = SentenceSplitter(chunk_size=1000,chunk_overlap=400)
-
-#TODO: Loading data files
-def loadAndChunkPDF(path:str):
+embedding_model = SentenceTransformer(EMBED_MODEL)
+def loadAndChunkPDF(path: str):
+    """Load PDF and split into chunks"""
     docs = PDFReader().load_data(file=path)
-    text = [d.text for d in docs if getattr(d,"text",None)]
+    text = [d.text for d in docs if getattr(d, "text", None)]
     chunks = []
     for t in text:
         chunks.extend(splitter.split_text(t))
 
-
     return chunks
 
-def embedText(text:List[str]) -> List[List[float]]:
-    response = client.embeddings.create(
-        model = EMBED_MODEL,
-        dimensions=EMBED_DIM,
-        input=text
+
+def embedText(text: List[str]) -> List[List[float]]:
+    """
+    Embed text using Hugging Face sentence-transformers
+    Returns list of embeddings as lists of floats
+    """
+    embeddings = embedding_model.encode(
+        text,
+        show_progress_bar=False,
+        convert_to_numpy=True
     )
-    return [item.embedding for item in response.data]
-
-
-
+    # Convert numpy arrays to lists
+    return [emb.tolist() for emb in embeddings]
